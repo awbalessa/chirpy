@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -79,6 +80,9 @@ func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
 	type valid struct {
 		Valid bool `json:"valid"`
 	}
+	type cleanedResponse struct {
+		CleanedBody string `json:"cleaned_body"`
+	}
 
 	params := parameters{}
 	decoder := json.NewDecoder(r.Body)
@@ -106,10 +110,17 @@ func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	} else {
-		res := valid{Valid: true}
-		data, marshalErr := json.Marshal(res)
-		if marshalErr != nil {
-			log.Printf("Error unmarshalling JSON: %v", err)
+		resBodyArr := strings.Fields(params.Body)
+		for i := range resBodyArr {
+			if strings.ToLower(resBodyArr[i]) == "kerfuffle" || strings.ToLower(resBodyArr[i]) == "sharbert" || strings.ToLower(resBodyArr[i]) == "fornax" {
+				resBodyArr[i] = "****"
+			}
+		}
+
+		cleanedRes := cleanedResponse{CleanedBody: strings.Join(resBodyArr, " ")}
+		data, err := json.Marshal(&cleanedRes)
+		if err != nil {
+			log.Printf("Error marshalling response: %v", err)
 			return
 		}
 		w.WriteHeader(200)
