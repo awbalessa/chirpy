@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *APIConfig) handleChirps(w http.ResponseWriter, r *http.Request) {
+func (c *APIConfig) handlePostChirp(w http.ResponseWriter, r *http.Request) {
 	type reqParams struct {
 		Body   string    `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
@@ -70,6 +71,93 @@ func (c *APIConfig) handleChirps(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
+	w.Write(data)
+	return
+}
+
+func (c *APIConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
+	type chirp struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+
+	chirps, err := c.Queries.GetChirpsOldestFirst(r.Context())
+	if err != nil {
+		log.Printf("Error getting chirps: %v", err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	responseChirps := make([]chirp, len(chirps))
+
+	for i, dbChirp := range chirps {
+		responseChirps[i] = chirp{
+			ID:        dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			Body:      dbChirp.Body,
+			UserID:    dbChirp.UserID,
+		}
+	}
+
+	data, err := json.Marshal(responseChirps)
+	if err != nil {
+		log.Printf("Error marshalling response chirps: %v", err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(data)
+	return
+}
+
+func (c *APIConfig) handleGetChirpByID(w http.ResponseWriter, r *http.Request) {
+	type chirp struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+
+	inputID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		c.RespondWithError(w, 400, "Invalid chirp ID format")
+		return
+	}
+
+	dbChirp, err := c.Queries.GetChirpByID(r.Context(), inputID)
+	if err == sql.ErrNoRows {
+		log.Printf("Chirp not found: %v", err)
+		c.RespondWithError(w, 404, "Chirp not found")
+		return
+	} else if err != nil {
+		log.Printf("Error getting chirp by ID: %v", err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	resChirp := chirp{
+		ID:        dbChirp.ID,
+		CreatedAt: dbChirp.CreatedAt,
+		UpdatedAt: dbChirp.UpdatedAt,
+		Body:      dbChirp.Body,
+		UserID:    dbChirp.UserID,
+	}
+	data, err := json.Marshal(resChirp)
+	if err != nil {
+		log.Printf("Error marshalling chirp: %v", err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 	w.Write(data)
 	return
 }
