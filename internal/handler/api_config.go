@@ -17,6 +17,7 @@ type ErrorResponse struct {
 type APIConfig struct {
 	Queries        *database.Queries
 	FileServerHits atomic.Int32
+	Platform       string
 }
 
 func (c *APIConfig) RespondWithError(w http.ResponseWriter, status int, message string) {

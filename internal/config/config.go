@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Port string
-	DSN  string
+	Port     string
+	DSN      string
+	Platform string
 }
 
 func Load() (*Config, error) {
@@ -18,7 +19,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("Failed to load .env file: %v", err)
 	}
 	return &Config{
-		Port: "8080",
-		DSN:  os.Getenv("postgres://azizalessa:@localhost:5432/chirpy"),
+		Port:     "8080",
+		DSN:      os.Getenv("DB_URL"),
+		Platform: os.Getenv("PLATFORM"),
 	}, nil
 }
