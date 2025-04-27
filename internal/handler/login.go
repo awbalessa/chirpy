@@ -1,17 +1,17 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/awbalessa/chirpy/internal/auth"
-	"github.com/awbalessa/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
-func (c *APIConfig) handleUsers(w http.ResponseWriter, r *http.Request) {
+func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -26,28 +26,23 @@ func (c *APIConfig) handleUsers(w http.ResponseWriter, r *http.Request) {
 
 	params := parameters{}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&params)
-	if err != nil {
+	if err := decoder.Decode(&params); err != nil {
 		c.RespondWithError(w, 400, "Invalid request format")
 		return
 	}
 
-	hashedPwd, err := auth.HashPassword(params.Password)
-	if err != nil {
-		log.Print(err)
+	user, err := c.Queries.GetUserByEmail(r.Context(), params.Email)
+	if err == sql.ErrNoRows {
+		c.RespondWithError(w, 401, "Incorrect email or password")
+		return
+	} else if err != nil {
 		c.RespondWithError(w, 500, "Internal server error")
 		return
 	}
 
-	dbParams := database.CreateUserParams{
-		Email:          params.Email,
-		HashedPassword: hashedPwd,
-	}
-
-	user, err := c.Queries.CreateUser(r.Context(), dbParams)
-	if err != nil {
-		log.Printf("Error creating user: %v", err)
-		c.RespondWithError(w, 500, "Internal server error")
+	if err = auth.CheckPasswordHash(user.HashedPassword, params.Password); err != nil {
+		log.Print(err)
+		c.RespondWithError(w, 401, "Incorrect email or password")
 		return
 	}
 
@@ -60,11 +55,13 @@ func (c *APIConfig) handleUsers(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(res)
 	if err != nil {
+		log.Printf("Error marshalling: %v", err)
 		c.RespondWithError(w, 500, "Internal server error")
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 	w.Write(data)
 	return
 }
