@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -102,6 +103,30 @@ func TestWrongToken(t *testing.T) {
 		_, err = ValidateJWT(token, "wrong-secret")
 		if err == nil {
 			t.Fatal("Expected wrong token error, got nil")
+		}
+	})
+}
+
+func TestGetBearerToken(t *testing.T) {
+	type testCase struct {
+		name   string
+		header http.Header
+	}
+
+	test := testCase{
+		name: "Testing the best token string",
+	}
+	test.header.Add("Authorization", "the_best_token_string")
+	token := test.header.Get("Authorization")
+
+	t.Run(test.name, func(t *testing.T) {
+		returnedToken, err := GetBearerToken(test.header)
+		if err != nil {
+			t.Fatalf("Error getting bearer token: %v", err)
+		}
+
+		if returnedToken != token {
+			t.Fatalf("Expected token %s, got %s", token, returnedToken)
 		}
 	})
 }

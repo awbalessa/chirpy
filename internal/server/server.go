@@ -26,8 +26,9 @@ func Run(cfg config.Config) error {
 	defer db.Close()
 
 	apiCfg := &handler.APIConfig{
-		Queries:  database.New(db),
-		Platform: cfg.Platform,
+		Queries:     database.New(db),
+		Platform:    cfg.Platform,
+		TokenSecret: cfg.TokenSecret,
 	}
 
 	mux := http.NewServeMux()

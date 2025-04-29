@@ -13,8 +13,9 @@ import (
 
 func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 
 	type response struct {
@@ -22,6 +23,7 @@ func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 		Email     string    `json:"email"`
+		Token     string    `json:"token"`
 	}
 
 	params := parameters{}
@@ -29,6 +31,10 @@ func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err := decoder.Decode(&params); err != nil {
 		c.RespondWithError(w, 400, "Invalid request format")
 		return
+	}
+
+	if params.ExpiresInSeconds == 0 || params.ExpiresInSeconds > 3600 {
+		params.ExpiresInSeconds = 3600
 	}
 
 	user, err := c.Queries.GetUserByEmail(r.Context(), params.Email)
@@ -46,11 +52,19 @@ func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := auth.MakeJWT(user.ID, c.TokenSecret, time.Duration(params.ExpiresInSeconds)*time.Second)
+	if err != nil {
+		log.Print(err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
 	res := response{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	}
 
 	data, err := json.Marshal(res)

@@ -8,14 +8,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/awbalessa/chirpy/internal/auth"
 	"github.com/awbalessa/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
 func (c *APIConfig) handlePostChirp(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Print(err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, c.TokenSecret)
+	if err != nil {
+		log.Print(err)
+		c.RespondWithError(w, 401, "Unauthorized to access resource")
+		return
+	}
+
 	type reqParams struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	type response struct {
@@ -46,7 +60,7 @@ func (c *APIConfig) handlePostChirp(w http.ResponseWriter, r *http.Request) {
 
 	chirpParams := database.CreateChirpParams{
 		Body:   strings.Join(bodyArr, " "),
-		UserID: params.UserID,
+		UserID: userID,
 	}
 	chirp, err := c.Queries.CreateChirp(r.Context(), chirpParams)
 	if err != nil {

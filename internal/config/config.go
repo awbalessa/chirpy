@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Port     string
-	DSN      string
-	Platform string
+	Port        string
+	DSN         string
+	Platform    string
+	TokenSecret string
 }
 
 func Load() (*Config, error) {
@@ -19,8 +20,9 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("Failed to load .env file: %v", err)
 	}
 	return &Config{
-		Port:     "8080",
-		DSN:      os.Getenv("DB_URL"),
-		Platform: os.Getenv("PLATFORM"),
+		Port:        "8080",
+		DSN:         os.Getenv("DB_URL"),
+		Platform:    os.Getenv("PLATFORM"),
+		TokenSecret: os.Getenv("TOKEN_SECRET"),
 	}, nil
 }
