@@ -8,22 +8,23 @@ import (
 	"time"
 
 	"github.com/awbalessa/chirpy/internal/auth"
+	"github.com/awbalessa/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
 func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email            string `json:"email"`
-		Password         string `json:"password"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	type response struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
 
 	params := parameters{}
@@ -31,10 +32,6 @@ func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err := decoder.Decode(&params); err != nil {
 		c.RespondWithError(w, 400, "Invalid request format")
 		return
-	}
-
-	if params.ExpiresInSeconds == 0 || params.ExpiresInSeconds > 3600 {
-		params.ExpiresInSeconds = 3600
 	}
 
 	user, err := c.Queries.GetUserByEmail(r.Context(), params.Email)
@@ -52,19 +49,38 @@ func (c *APIConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, c.TokenSecret, time.Duration(params.ExpiresInSeconds)*time.Second)
+	token, err := auth.MakeJWT(user.ID, c.TokenSecret, time.Hour)
 	if err != nil {
 		log.Print(err)
 		c.RespondWithError(w, 500, "Internal server error")
 		return
 	}
 
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		log.Print(err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	refreshParams := database.CreateRefreshTokenParams{
+		Token:  refreshToken,
+		UserID: user.ID,
+	}
+	_, err = c.Queries.CreateRefreshToken(r.Context(), refreshParams)
+	if err != nil {
+		log.Printf("Error creating refresh token: %v", err)
+		c.RespondWithError(w, 500, "Internal server error")
+		return
+	}
+
 	res := response{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     token,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        token,
+		RefreshToken: refreshToken,
 	}
 
 	data, err := json.Marshal(res)
