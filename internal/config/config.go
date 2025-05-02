@@ -12,6 +12,7 @@ type Config struct {
 	DSN         string
 	Platform    string
 	TokenSecret string
+	PolkaKey    string
 }
 
 func Load() (*Config, error) {
@@ -24,5 +25,6 @@ func Load() (*Config, error) {
 		DSN:         os.Getenv("DB_URL"),
 		Platform:    os.Getenv("PLATFORM"),
 		TokenSecret: os.Getenv("TOKEN_SECRET"),
+		PolkaKey:    os.Getenv("POLKA_KEY"),
 	}, nil
 }

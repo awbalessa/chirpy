@@ -29,6 +29,7 @@ func Run(cfg config.Config) error {
 		Queries:     database.New(db),
 		Platform:    cfg.Platform,
 		TokenSecret: cfg.TokenSecret,
+		PolkaKey:    cfg.PolkaKey,
 	}
 
 	mux := http.NewServeMux()

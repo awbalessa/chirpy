@@ -19,6 +19,7 @@ type APIConfig struct {
 	FileServerHits atomic.Int32
 	Platform       string
 	TokenSecret    string
+	PolkaKey       string
 }
 
 func (c *APIConfig) RespondWithError(w http.ResponseWriter, status int, message string) {
